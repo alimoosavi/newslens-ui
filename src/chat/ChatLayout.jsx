@@ -1,51 +1,44 @@
 import React, { useState } from "react";
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Tabs,
-  Tab,
-  IconButton,
-  Box,
-} from "@mui/material";
-
-import ChatIcon from "@mui/icons-material/Chat";
-import SearchIcon from "@mui/icons-material/Search";
+import { AppBar, Toolbar, Typography, Tabs, Tab, IconButton, Box } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { useNavigate } from "react-router-dom";
 
 import ChatWindow from "./ChatWindow";
 import SearchTab from "./SearchTab";
 import ChatSessions from "./ChatSessions";
 
-export default function ChatLayout({ onLogout }) {
-  // 🔹 Default to Search tab (index = 1)
-  const [tab, setTab] = useState(1);
+export default function ChatLayout() {
+  const [tab, setTab] = useState(1); // Search tab default
+  const navigate = useNavigate();
 
   const handleChange = (event, newValue) => {
     setTab(newValue);
   };
 
+  // 🔹 Logout logic here
+  const handleLogout = () => {
+    localStorage.removeItem("access_token"); // remove JWT
+    navigate("/login"); // redirect to login page
+  };
+
   return (
     <Box sx={{ flexGrow: 1, height: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* App Bar */}
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             NewsLens
           </Typography>
-          <IconButton color="inherit" onClick={onLogout}>
+          <IconButton color="inherit" onClick={handleLogout}>
             <LogoutIcon />
           </IconButton>
         </Toolbar>
       </AppBar>
 
-      {/* Tabs for Chat and Search */}
       <Tabs value={tab} onChange={handleChange} centered>
-        <Tab icon={<ChatIcon />} label="Chat" />
-        <Tab icon={<SearchIcon />} label="Search" />
+        <Tab label="Chat" />
+        <Tab label="Search" />
       </Tabs>
 
-      {/* Content */}
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         {tab === 0 && (
           <Box sx={{ display: "flex", height: "100%" }}>
