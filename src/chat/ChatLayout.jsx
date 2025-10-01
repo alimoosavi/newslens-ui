@@ -1,31 +1,37 @@
 import React, { useState } from "react";
-import { AppBar, Toolbar, Typography, Tabs, Tab, IconButton, Box } from "@mui/material";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Tabs,
+  Tab,
+  IconButton,
+  Box,
+} from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { useNavigate } from "react-router-dom";
 
 import ChatWindow from "./ChatWindow";
-import SearchTab from "./SearchTab";
 import ChatSessions from "./ChatSessions";
+import SearchTab from "./SearchTab";
+import { useNavigate } from "react-router-dom";
 
 export default function ChatLayout() {
-  const [tab, setTab] = useState(1); // Search tab default
+  const [tab, setTab] = useState(1); // Search tab first
   const navigate = useNavigate();
 
-  const handleChange = (event, newValue) => {
-    setTab(newValue);
-  };
+  const handleChange = (event, newValue) => setTab(newValue);
 
-  // 🔹 Logout logic here
   const handleLogout = () => {
-    localStorage.removeItem("access_token"); // remove JWT
-    navigate("/login"); // redirect to login page
+    localStorage.removeItem("access_token");
+    navigate("/login");
   };
 
   return (
-    <Box sx={{ flexGrow: 1, height: "100vh", display: "flex", flexDirection: "column" }}>
-      <AppBar position="static">
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      {/* AppBar */}
+      <AppBar position="static" elevation={1} sx={{ backgroundColor: "#0c0d10" }}>
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 500 }}>
             NewsLens
           </Typography>
           <IconButton color="inherit" onClick={handleLogout}>
@@ -34,15 +40,24 @@ export default function ChatLayout() {
         </Toolbar>
       </AppBar>
 
-      <Tabs value={tab} onChange={handleChange} centered>
+      {/* Tabs */}
+      <Tabs
+        value={tab}
+        onChange={handleChange}
+        indicatorColor="primary"
+        textColor="primary"
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+        centered
+      >
         <Tab label="Chat" />
         <Tab label="Search" />
       </Tabs>
 
-      <Box sx={{ flex: 1, overflow: "hidden" }}>
+      {/* Tab Content */}
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", transition: "all 0.3s" }}>
         {tab === 0 && (
-          <Box sx={{ display: "flex", height: "100%" }}>
-            <Box sx={{ width: 240, borderRight: "1px solid #ccc", overflowY: "auto" }}>
+          <Box sx={{ display: "flex", flex: 1 }}>
+            <Box sx={{ width: 280, borderRight: 1, borderColor: "#222", overflowY: "auto" }}>
               <ChatSessions />
             </Box>
             <Box sx={{ flex: 1 }}>
