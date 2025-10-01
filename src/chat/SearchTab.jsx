@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   Box,
   TextField,
-  Button,
+  IconButton,
   Card,
   CardContent,
   CardMedia,
@@ -10,7 +10,10 @@ import {
   Chip,
   Grid,
   CircularProgress,
+  InputAdornment,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import api from "../api";
 
 export default function SearchTab() {
@@ -33,27 +36,54 @@ export default function SearchTab() {
   };
 
   return (
-    <Box sx={{ p: 3, overflowY: "auto", height: "100%", backgroundColor: "#0b0c0f" }}>
+    <Box
+      sx={{
+        p: 3,
+        overflowY: "auto",
+        height: "100%",
+        backgroundColor: "#0b0c0f",
+      }}
+    >
       {/* Search Input */}
-      <Box sx={{ display: "flex", mb: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          mb: 3,
+        }}
+      >
         <TextField
-          fullWidth
           placeholder="Search news..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+          fullWidth
           sx={{
-            mr: 2,
-            input: { color: "#fff" },
+            maxWidth: 700,
+            input: { color: "#fff", padding: "12px" },
             "& .MuiOutlinedInput-root": {
+              borderRadius: "50px",
+              backgroundColor: "#1c1d21",
               "& fieldset": { borderColor: "#444" },
               "&:hover fieldset": { borderColor: "#10a37f" },
               "&.Mui-focused fieldset": { borderColor: "#10a37f" },
             },
           }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={handleSearch}
+                  sx={{
+                    color: "#10a37f",
+                  }}
+                >
+                  {query.trim() ? <ArrowUpwardIcon /> : <SearchIcon />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
         />
-        <Button variant="contained" onClick={handleSearch} sx={{ backgroundColor: "#10a37f" }}>
-          Search
-        </Button>
       </Box>
 
       {/* Loading */}
@@ -108,8 +138,9 @@ export default function SearchTab() {
                   <Typography variant="caption" color="#888">
                     {news.source} | {new Date(news.published_datetime).toLocaleString()}
                   </Typography>
-                  <Button
+                  <IconButton
                     size="small"
+                    component="a"
                     href={news.link}
                     target="_blank"
                     sx={{
@@ -117,10 +148,9 @@ export default function SearchTab() {
                       color: "#10a37f",
                       borderColor: "#10a37f",
                     }}
-                    variant="outlined"
                   >
                     Read More
-                  </Button>
+                  </IconButton>
                 </CardContent>
               </Card>
             </Grid>
