@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Box, TextField, IconButton } from "@mui/material";
+import { Box, TextField, IconButton, CircularProgress } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../api";
@@ -13,61 +13,70 @@ export default function ChatWindow({
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchingHistory, setFetchingHistory] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Scroll to bottom whenever messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
   useEffect(scrollToBottom, [messages, loading]);
 
-  // Fetch messages for the active session
+  // Fetch messages when activeSession changes
   useEffect(() => {
-    if (!activeSession) {
+    if (!activeSession?.id) {
       setMessages([]);
       return;
     }
 
     const fetchMessages = async () => {
+      setFetchingHistory(true);
       try {
-        const res = await api.get(`/api/sessions/${activeSession.id}/`);
-        if (res.data.history && res.data.history.length > 0) {
-          setMessages(res.data.history);
+        const res = await api.get(`/api/sessions/${activeSession.id}/messages/`);
+        if (Array.isArray(res.data)) {
+          setMessages(res.data);
+        } else {
+          setMessages([]);
         }
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch messages:", err);
+        setMessages([]);
+      } finally {
+        setFetchingHistory(false);
       }
     };
 
+    // Clear old messages immediately
+    setMessages([]);
     fetchMessages();
-  }, [activeSession]);
+  }, [activeSession?.id]);
 
   const handleSend = async () => {
     if (!newMessage.trim()) return;
 
-    let sessionId = activeSession?.id;
     const userMsg = { role: "user", content: newMessage };
-
-    // show user message immediately
-    setMessages((prev) => [...prev, userMsg]);
-    setNewMessage(""); // clear input
+    setNewMessage("");
     setLoading(true);
 
-    // If no active session, create one
+    let sessionId = activeSession?.id;
+
+    // Create session if none exists
     if (!sessionId) {
       try {
         const res = await api.post("/api/sessions/", {});
-        sessionId = res.data.id;
-        const newSession = { ...res.data };
+        const newSession = res.data;
+        sessionId = newSession.id;
         setActiveSession(newSession);
-        setSessions([newSession, ...sessions]);
+        setSessions((prev) => [newSession, ...prev]);
       } catch (err) {
         console.error("Failed to create session:", err);
         setLoading(false);
         return;
       }
     }
+
+    // Add user message immediately
+    setMessages((prev) => [...prev, userMsg]);
 
     try {
       const res = await api.post(`/api/sessions/${sessionId}/chat/`, {
@@ -87,7 +96,7 @@ export default function ChatWindow({
         )
       );
     } catch (err) {
-      console.error(err);
+      console.error("Failed to send message:", err);
     } finally {
       setLoading(false);
     }
@@ -105,6 +114,12 @@ export default function ChatWindow({
     >
       {/* Messages */}
       <Box sx={{ flex: 1, overflowY: "auto", mb: 2 }}>
+        {fetchingHistory && (
+          <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
+            <CircularProgress color="inherit" size={24} />
+          </Box>
+        )}
+
         <AnimatePresence>
           {messages.map((msg, idx) => (
             <motion.div
@@ -138,7 +153,6 @@ export default function ChatWindow({
             </motion.div>
           ))}
 
-          {/* Loading animation */}
           {loading && (
             <motion.div
               initial={{ opacity: 0 }}
