@@ -1,34 +1,25 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   Box,
   List,
   ListItem,
   ListItemText,
-  Divider,
-  Button,
   IconButton,
+  Button,
+  Typography,
+  Divider,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import LogoutIcon from "@mui/icons-material/Logout";
 import api from "../api";
 
-export default function ChatSidebar({
-  activeSession,
-  onSelectSession,
+export default function SessionsNavbar({
   sessions,
   setSessions,
+  activeSession,
+  onSelectSession,
+  onLogout,
 }) {
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const res = await api.get("/api/sessions/");
-        setSessions(res.data);
-      } catch (err) {
-        console.error("Failed to fetch sessions:", err);
-      }
-    };
-    fetchSessions();
-  }, [setSessions]);
-
   const handleNewChat = async () => {
     try {
       const res = await api.post("/api/sessions/", {});
@@ -36,7 +27,7 @@ export default function ChatSidebar({
       setSessions((prev) => [newSession, ...prev]);
       onSelectSession(newSession);
     } catch (err) {
-      console.error("Failed to create new session:", err);
+      console.error("Failed to create session:", err);
     }
   };
 
@@ -53,21 +44,30 @@ export default function ChatSidebar({
   return (
     <Box
       sx={{
+        width: 280,
         display: "flex",
         flexDirection: "column",
-        height: "100%",
-        width: 280,
-        bgcolor: "#000",
+        bgcolor: "#111",
         color: "#fff",
       }}
     >
+      {/* Header */}
+      <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Typography variant="h6">NewsLens</Typography>
+        <IconButton onClick={onLogout} sx={{ color: "#fff" }}>
+          <LogoutIcon />
+        </IconButton>
+      </Box>
+
       <Button
         variant="contained"
         sx={{
-          m: 2,
-          backgroundColor: "#10a37f",
-          textTransform: "none",
+          mx: 2,
+          mb: 2,
+          bgcolor: "#10a37f",
           fontWeight: "bold",
+          textTransform: "none",
+          borderRadius: 2,
         }}
         onClick={handleNewChat}
       >
@@ -76,6 +76,7 @@ export default function ChatSidebar({
 
       <Divider sx={{ borderColor: "#333" }} />
 
+      {/* Sessions List */}
       <List sx={{ flex: 1, overflowY: "auto" }}>
         {sessions.map((s) => (
           <ListItem
@@ -85,31 +86,24 @@ export default function ChatSidebar({
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              "&.Mui-selected": {
-                backgroundColor: "#333",
-                "&:hover": { backgroundColor: "#444" },
-              },
-              "&:hover": { backgroundColor: "#111" },
+              cursor: "pointer",
+              bgcolor: activeSession?.id === s.id ? "#222" : "transparent",
+              "&:hover": { bgcolor: "#222" },
             }}
           >
             <ListItemText
               primary={s.title || `Session ${s.id.slice(0, 6)}`}
               secondary={new Date(s.updated_at).toLocaleString()}
-              primaryTypographyProps={{ noWrap: true }}
-              secondaryTypographyProps={{
-                variant: "caption",
-                color: "grey.500",
-              }}
+              primaryTypographyProps={{ noWrap: true, color: "#fff" }}
+              secondaryTypographyProps={{ variant: "caption", color: "grey.500" }}
             />
             <IconButton
-              edge="end"
-              aria-label="delete"
+              size="small"
+              sx={{ color: "#aaa" }}
               onClick={(e) => {
-                e.stopPropagation(); // prevent also selecting
+                e.stopPropagation();
                 handleDelete(s.id);
               }}
-              sx={{ color: "#aaa" }}
             >
               <DeleteIcon fontSize="small" />
             </IconButton>

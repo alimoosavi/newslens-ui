@@ -1,18 +1,29 @@
-import React, { useState } from "react";
-import { AppBar, Toolbar, Typography, Tabs, Tab, IconButton, Box } from "@mui/material";
-import LogoutIcon from "@mui/icons-material/Logout";
-import ChatWindow from "./ChatWindow";
-import ChatSidebar from "./ChatSidebar";
-import SearchTab from "./SearchTab";
+import React, { useState, useEffect } from "react";
+import { Box, Tabs, Tab } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
+import ChatWindow from "./ChatWindow";
+import SessionsNavbar from "./SessionsNavbar";
+import SearchTab from "./SearchTab";
 
 export default function ChatLayout() {
-  const [tab, setTab] = useState(0); // Chat tab first
+  const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
-  const [sessions, setSessions] = useState([]); // All sessions
+  const [tab, setTab] = useState(0); // 0 = Chat, 1 = Search
   const navigate = useNavigate();
 
-  const handleChange = (event, newValue) => setTab(newValue);
+  // Fetch sessions once
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await api.get("/api/sessions/");
+        setSessions(res.data);
+      } catch (err) {
+        console.error("Failed to fetch sessions:", err);
+      }
+    };
+    fetchSessions();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -21,37 +32,34 @@ export default function ChatLayout() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      {/* AppBar */}
-      <AppBar position="static" elevation={1} sx={{ backgroundColor: "#0c0d10" }}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 500 }}>
-            NewsLens
-          </Typography>
-          <IconButton color="inherit" onClick={handleLogout}>
-            <LogoutIcon />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-
-      {/* Tabs */}
-      <Tabs value={tab} onChange={handleChange} indicatorColor="primary" textColor="primary" centered>
+      {/* Top Tab Switcher */}
+      <Tabs
+        value={tab}
+        onChange={(e, val) => setTab(val)}
+        textColor="inherit"
+        indicatorColor="primary"
+        sx={{
+          bgcolor: "#111",
+          color: "#fff",
+          "& .MuiTab-root": { textTransform: "none", fontWeight: "bold" },
+        }}
+      >
         <Tab label="Chat" />
         <Tab label="Search" />
       </Tabs>
 
-      {/* Tab Content */}
+      {/* Main Content */}
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {tab === 0 && (
-          <Box sx={{ display: "flex", flex: 1 }}>
-            {/* Left Sidebar */}
-            <Box sx={{ width: 280, borderRight: 1, borderColor: "#222", overflowY: "auto" }}>
-              <ChatSidebar
-                sessions={sessions}
-                activeSession={activeSession}
-                onSelectSession={setActiveSession}
-              />
-            </Box>
-            {/* Chat Window */}
+        {tab === 0 ? (
+          // Chat Mode
+          <>
+            <SessionsNavbar
+              sessions={sessions}
+              setSessions={setSessions}
+              activeSession={activeSession}
+              onSelectSession={(session) => setActiveSession(session)}
+              onLogout={handleLogout}
+            />
             <Box sx={{ flex: 1 }}>
               <ChatWindow
                 activeSession={activeSession}
@@ -60,9 +68,10 @@ export default function ChatLayout() {
                 setSessions={setSessions}
               />
             </Box>
-          </Box>
+          </>
+        ) : (
+          <SearchTab />
         )}
-        {tab === 1 && <SearchTab />}
       </Box>
     </Box>
   );

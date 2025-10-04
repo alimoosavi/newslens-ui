@@ -14,18 +14,19 @@ export default function ChatWindow({
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchingHistory, setFetchingHistory] = useState(false);
+  const [started, setStarted] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Scroll to bottom whenever messages change
-  const scrollToBottom = () => {
+  // Auto scroll
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-  useEffect(scrollToBottom, [messages, loading]);
+  }, [messages, loading]);
 
-  // Fetch messages when activeSession changes
+  // Load historical messages when switching sessions
   useEffect(() => {
     if (!activeSession?.id) {
       setMessages([]);
+      setStarted(false);
       return;
     }
 
@@ -33,34 +34,34 @@ export default function ChatWindow({
       setFetchingHistory(true);
       try {
         const res = await api.get(`/api/sessions/${activeSession.id}/messages/`);
-        if (Array.isArray(res.data)) {
-          setMessages(res.data);
-        } else {
-          setMessages([]);
-        }
+        const msgs = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setMessages(msgs);
+        setStarted(msgs.length > 0);
       } catch (err) {
         console.error("Failed to fetch messages:", err);
         setMessages([]);
+        setStarted(false);
       } finally {
         setFetchingHistory(false);
       }
     };
 
-    // Clear old messages immediately
-    setMessages([]);
     fetchMessages();
   }, [activeSession?.id]);
 
+  // Send new message
   const handleSend = async () => {
     if (!newMessage.trim()) return;
 
+    setStarted(true);
     const userMsg = { role: "user", content: newMessage };
     setNewMessage("");
+    setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
     let sessionId = activeSession?.id;
 
-    // Create session if none exists
+    // create session if none exists
     if (!sessionId) {
       try {
         const res = await api.post("/api/sessions/", {});
@@ -75,9 +76,6 @@ export default function ChatWindow({
       }
     }
 
-    // Add user message immediately
-    setMessages((prev) => [...prev, userMsg]);
-
     try {
       const res = await api.post(`/api/sessions/${sessionId}/chat/`, {
         message: userMsg.content,
@@ -88,6 +86,7 @@ export default function ChatWindow({
         { role: "assistant", content: res.data.response },
       ]);
 
+      // update session timestamp
       setSessions((prev) =>
         prev.map((s) =>
           s.id === sessionId
@@ -103,17 +102,9 @@ export default function ChatWindow({
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        p: 2,
-        backgroundColor: "#0b0c0f",
-      }}
-    >
-      {/* Messages */}
-      <Box sx={{ flex: 1, overflowY: "auto", mb: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2, backgroundColor: "#0b0c0f" }}>
+      {/* Messages list */}
+      <Box sx={{ flex: 1, overflowY: "auto", mb: started ? 2 : 0 }}>
         {fetchingHistory && (
           <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
             <CircularProgress color="inherit" size={24} />
@@ -127,13 +118,12 @@ export default function ChatWindow({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.2 }}
             >
               <Box
                 sx={{
                   display: "flex",
-                  justifyContent:
-                    msg.role === "user" ? "flex-end" : "flex-start",
+                  justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
                   mb: 1,
                 }}
               >
@@ -152,70 +142,52 @@ export default function ChatWindow({
               </Box>
             </motion.div>
           ))}
-
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ repeat: Infinity, duration: 0.8 }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "flex-start",
-                  mb: 1,
-                }}
-              >
-                <Box
-                  sx={{
-                    maxWidth: "60%",
-                    p: 1.5,
-                    borderRadius: 2,
-                    bgcolor: "#1c1d21",
-                    color: "#e5e5e5",
-                    fontStyle: "italic",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <span>Thinking</span>
-                  <motion.span
-                    animate={{ opacity: [0.2, 1, 0.2] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                  >
-                    ...
-                  </motion.span>
-                </Box>
-              </Box>
-            </motion.div>
-          )}
         </AnimatePresence>
+
+        {loading && (
+          <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1 }}>
+            <Box
+              sx={{
+                maxWidth: "60%",
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: "#1c1d21",
+                color: "#e5e5e5",
+                fontStyle: "italic",
+              }}
+            >
+              Thinking...
+            </Box>
+          </Box>
+        )}
         <div ref={messagesEndRef} />
       </Box>
 
-      {/* Input */}
-      <Box sx={{ display: "flex" }}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          size="small"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Type a message..."
-          sx={{
-            input: { color: "#fff" },
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "25px",
-              bgcolor: "#1c1d21",
-            },
-          }}
-        />
-        <IconButton color="primary" onClick={handleSend} sx={{ ml: 1 }}>
-          <SendIcon />
-        </IconButton>
-      </Box>
+      {/* Input field with animation */}
+      <motion.div
+        animate={{ y: started ? 0 : "-50%" }}
+        transition={{ duration: 0.6, type: "spring" }}
+        style={{ display: "flex", justifyContent: "center", marginTop: started ? "auto" : 0 }}
+      >
+        <Box sx={{ display: "flex", width: "100%", maxWidth: 700 }}>
+          <TextField
+            fullWidth
+            variant="outlined"
+            size="small"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Type a message..."
+            sx={{
+              input: { color: "#fff" },
+              "& .MuiOutlinedInput-root": { borderRadius: "25px", bgcolor: "#1c1d21" },
+            }}
+          />
+          <IconButton color="primary" onClick={handleSend} sx={{ ml: 1 }}>
+            <SendIcon />
+          </IconButton>
+        </Box>
+      </motion.div>
     </Box>
   );
 }
