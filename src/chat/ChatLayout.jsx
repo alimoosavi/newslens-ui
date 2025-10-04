@@ -1,22 +1,15 @@
 import React, { useState } from "react";
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Tabs,
-  Tab,
-  IconButton,
-  Box,
-} from "@mui/material";
+import { AppBar, Toolbar, Typography, Tabs, Tab, IconButton, Box } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
-
 import ChatWindow from "./ChatWindow";
-import ChatSessions from "./ChatSessions";
+import ChatSidebar from "./ChatSidebar";
 import SearchTab from "./SearchTab";
 import { useNavigate } from "react-router-dom";
 
 export default function ChatLayout() {
-  const [tab, setTab] = useState(1); // Search tab first
+  const [tab, setTab] = useState(0); // Chat tab first
+  const [activeSession, setActiveSession] = useState(null);
+  const [sessions, setSessions] = useState([]); // All sessions
   const navigate = useNavigate();
 
   const handleChange = (event, newValue) => setTab(newValue);
@@ -41,27 +34,31 @@ export default function ChatLayout() {
       </AppBar>
 
       {/* Tabs */}
-      <Tabs
-        value={tab}
-        onChange={handleChange}
-        indicatorColor="primary"
-        textColor="primary"
-        sx={{ borderBottom: 1, borderColor: "divider" }}
-        centered
-      >
+      <Tabs value={tab} onChange={handleChange} indicatorColor="primary" textColor="primary" centered>
         <Tab label="Chat" />
         <Tab label="Search" />
       </Tabs>
 
       {/* Tab Content */}
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden", transition: "all 0.3s" }}>
+      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {tab === 0 && (
           <Box sx={{ display: "flex", flex: 1 }}>
+            {/* Left Sidebar */}
             <Box sx={{ width: 280, borderRight: 1, borderColor: "#222", overflowY: "auto" }}>
-              <ChatSessions />
+              <ChatSidebar
+                sessions={sessions}
+                activeSession={activeSession}
+                onSelectSession={setActiveSession}
+              />
             </Box>
+            {/* Chat Window */}
             <Box sx={{ flex: 1 }}>
-              <ChatWindow />
+              <ChatWindow
+                activeSession={activeSession}
+                setActiveSession={setActiveSession}
+                sessions={sessions}
+                setSessions={setSessions}
+              />
             </Box>
           </Box>
         )}
