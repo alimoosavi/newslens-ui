@@ -19,6 +19,7 @@ import api from "../api";
 export default function SearchTab() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
+  const [logId, setLogId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
 
@@ -27,7 +28,11 @@ export default function SearchTab() {
     setLoading(true);
     try {
       const response = await api.post("/api/search/", { query });
-      setResults(response.data.results || []);
+      // ✅ Backend response structure
+      const data = response.data;
+
+      setLogId(data.log_id);
+      setResults(data.results || []);
       setSearchPerformed(true);
     } catch (err) {
       console.error(err);
@@ -96,14 +101,16 @@ export default function SearchTab() {
       )}
 
       {/* Results */}
-      {searchPerformed && (
-        <Box
-          sx={{
-            flex: 1,
-            overflowY: "auto",
-            mt: 1,
-          }}
-        >
+      {searchPerformed && !loading && (
+        <Box sx={{ flex: 1, overflowY: "auto", mt: 1 }}>
+          {/* Meta info */}
+          <Box sx={{ mb: 2, textAlign: "center", color: "#aaa" }}>
+            <Typography variant="subtitle2">
+              Showing {results.length} results{" "}
+              {logId && <>(Log ID: {logId.slice(0, 8)}...)</>}
+            </Typography>
+          </Box>
+
           <Grid container spacing={3} justifyContent="center">
             {results.map((item, idx) => {
               const news = item.payload;
@@ -130,20 +137,37 @@ export default function SearchTab() {
                         sx={{ borderRadius: "12px 12px 0 0" }}
                       />
                     )}
-                    <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <CardContent
+                      sx={{ flex: 1, display: "flex", flexDirection: "column" }}
+                    >
                       <Typography variant="h6" gutterBottom>
                         {news.title}
                       </Typography>
                       <Typography variant="body2" sx={{ flex: 1, mb: 1 }}>
                         {news.summary}
                       </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 0.5,
+                          mb: 1,
+                        }}
+                      >
                         {news.keywords?.map((kw, i) => (
-                          <Chip key={i} size="small" label={kw} sx={{ backgroundColor: "#333", color: "#fff" }} />
+                          <Chip
+                            key={i}
+                            size="small"
+                            label={kw}
+                            sx={{ backgroundColor: "#333", color: "#fff" }}
+                          />
                         ))}
                       </Box>
                       <Typography variant="caption" color="#888">
-                        {news.source} | {new Date(news.published_datetime).toLocaleString()}
+                        {news.source} |{" "}
+                        {new Date(
+                          news.published_datetime
+                        ).toLocaleDateString()}
                       </Typography>
                       <IconButton
                         size="small"

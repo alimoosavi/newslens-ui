@@ -3,13 +3,9 @@ import { Box, TextField, IconButton, CircularProgress } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../api";
+import NewsItem from "./NewsItem"; // <-- import new component
 
-export default function ChatWindow({
-  activeSession,
-  setActiveSession,
-  sessions,
-  setSessions,
-}) {
+export default function ChatWindow({ activeSession, setActiveSession, sessions, setSessions }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,19 +13,16 @@ export default function ChatWindow({
   const [started, setStarted] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Load historical messages when switching sessions
   useEffect(() => {
     if (!activeSession?.id) {
       setMessages([]);
       setStarted(false);
       return;
     }
-
     const fetchMessages = async () => {
       setFetchingHistory(true);
       try {
@@ -45,23 +38,19 @@ export default function ChatWindow({
         setFetchingHistory(false);
       }
     };
-
     fetchMessages();
   }, [activeSession?.id]);
 
-  // Send new message
   const handleSend = async () => {
     if (!newMessage.trim()) return;
-
     setStarted(true);
+
     const userMsg = { role: "user", content: newMessage };
     setNewMessage("");
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
     let sessionId = activeSession?.id;
-
-    // create session if none exists
     if (!sessionId) {
       try {
         const res = await api.post("/api/sessions/", {});
@@ -83,10 +72,13 @@ export default function ChatWindow({
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: res.data.response },
+        {
+          role: "assistant",
+          content: res.data.response,
+          news: res.data.news_items || [],
+        },
       ]);
 
-      // update session timestamp
       setSessions((prev) =>
         prev.map((s) =>
           s.id === sessionId
@@ -103,7 +95,7 @@ export default function ChatWindow({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2, backgroundColor: "#0b0c0f" }}>
-      {/* Messages list */}
+      {/* Messages */}
       <Box sx={{ flex: 1, overflowY: "auto", mb: started ? 2 : 0 }}>
         {fetchingHistory && (
           <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
@@ -125,6 +117,7 @@ export default function ChatWindow({
                   display: "flex",
                   justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
                   mb: 1,
+                  flexDirection: "column",
                 }}
               >
                 <Box
@@ -139,6 +132,15 @@ export default function ChatWindow({
                 >
                   {msg.content}
                 </Box>
+
+                {/* News Items */}
+                {msg.news && msg.news.length > 0 && (
+                  <Box sx={{ mt: 1, pl: 2, borderLeft: "2px solid #333" }}>
+                    {msg.news.map((n, i) => (
+                      <NewsItem key={i} news={n} />
+                    ))}
+                  </Box>
+                )}
               </Box>
             </motion.div>
           ))}
@@ -163,7 +165,7 @@ export default function ChatWindow({
         <div ref={messagesEndRef} />
       </Box>
 
-      {/* Input field with animation */}
+      {/* Input */}
       <motion.div
         animate={{ y: started ? 0 : "-50%" }}
         transition={{ duration: 0.6, type: "spring" }}
