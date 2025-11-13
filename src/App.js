@@ -1,27 +1,51 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import AuthPage from "./components/auth/AuthPage";
+import ChatLayout from "./components/chat/ChatLayout";
 
-import Login from "./auth/AuthPage";
-import ChatLayout from "./chat/ChatLayout";
+const darkTheme = createTheme({
+  palette: {
+    mode: "dark",
+    primary: {
+      main: "#10a37f",
+    },
+    background: {
+      default: "#0b0c0f",
+      paper: "#1c1d21",
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+  },
+});
 
-// Protect private routes
-function PrivateRoute({ children }) {
+function ProtectedRoute({ children }) {
   const token = localStorage.getItem("access_token");
   return token ? children : <Navigate to="/login" replace />;
 }
 
-export default function App() {
+function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/*"
-        element={
-          <PrivateRoute>
-            <ChatLayout />
-          </PrivateRoute>
-        }
-      />
-    </Routes>
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
+      <Router>
+        <Routes>
+          <Route path="/login" element={<AuthPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <ChatLayout />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
+
+export default App;
