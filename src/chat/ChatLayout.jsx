@@ -3,7 +3,7 @@ import { Box, Tabs, Tab } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import ChatWindow from "./ChatWindow";
-import SessionsNavbar from "./SessionsNavbar";
+import ChatSidebar from "./ChatSidebar";
 import SearchTab from "./SearchTab";
 
 export default function ChatLayout() {
@@ -12,7 +12,7 @@ export default function ChatLayout() {
   const [tab, setTab] = useState(0); // 0 = Chat, 1 = Search
   const navigate = useNavigate();
 
-  // Fetch sessions once
+  // Fetch sessions on mount
   useEffect(() => {
     const fetchSessions = async () => {
       try {
@@ -27,6 +27,7 @@ export default function ChatLayout() {
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     navigate("/login");
   };
 
@@ -41,7 +42,18 @@ export default function ChatLayout() {
         sx={{
           bgcolor: "#111",
           color: "#fff",
-          "& .MuiTab-root": { textTransform: "none", fontWeight: "bold" },
+          borderBottom: "1px solid #333",
+          "& .MuiTab-root": { 
+            textTransform: "none", 
+            fontWeight: "bold",
+            minHeight: 48,
+          },
+          "& .Mui-selected": {
+            color: "#10a37f",
+          },
+          "& .MuiTabs-indicator": {
+            backgroundColor: "#10a37f",
+          },
         }}
       >
         <Tab label="Chat" />
@@ -53,14 +65,14 @@ export default function ChatLayout() {
         {tab === 0 ? (
           // Chat Mode
           <>
-            <SessionsNavbar
+            <ChatSidebar
               sessions={sessions}
               setSessions={setSessions}
               activeSession={activeSession}
               onSelectSession={(session) => setActiveSession(session)}
               onLogout={handleLogout}
             />
-            <Box sx={{ flex: 1 }}>
+            <Box sx={{ flex: 1, overflow: "hidden" }}>
               <ChatWindow
                 activeSession={activeSession}
                 setActiveSession={setActiveSession}
@@ -70,6 +82,7 @@ export default function ChatLayout() {
             </Box>
           </>
         ) : (
+          // Search Mode
           <SearchTab />
         )}
       </Box>
