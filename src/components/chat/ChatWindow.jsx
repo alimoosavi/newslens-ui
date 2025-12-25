@@ -1,92 +1,126 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Box, TextField, IconButton, CircularProgress } from "@mui/material";
-import SendIcon from "@mui/icons-material/Send";
-import { motion, AnimatePresence } from "framer-motion";
-import api from "../../api";
-import NewsItem from "./NewsItem";
+import React, { useEffect, useState, useRef } from 'react';
+import { Box, TextField, IconButton, Typography } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
+import SendIcon from '@mui/icons-material/Send';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import api from '../../api';
+import { STRINGS, formatPersianTime } from '../../constants/strings';
+import { DotsLoader, SpinnerLoader } from '../common/Loaders';
+import NewsItem from './NewsItem';
 
 export default function ChatWindow({ activeSession, setActiveSession, sessions, setSessions }) {
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchingHistory, setFetchingHistory] = useState(false);
-  const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
-  // Auto-scroll to bottom
+  // Auto-scroll
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages, loading]);
 
+  // Fetch messages
   useEffect(() => {
     if (!activeSession?.id) {
       setMessages([]);
       return;
     }
+
     const fetchMessages = async () => {
       setFetchingHistory(true);
       try {
         const res = await api.get(`/api/sessions/${activeSession.id}/messages/`);
-        const msgs = Array.isArray(res.data) ? res.data : res.data.results || [];
-        setMessages(msgs);
+        let msgs = [];
+        if (Array.isArray(res.data)) {
+          msgs = res.data;
+        } else if (res.data.messages) {
+          msgs = res.data.messages;
+        } else if (res.data.results) {
+          msgs = res.data.results;
+        }
+
+        const formattedMessages = msgs.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          news: msg.news_items || msg.sources || [],
+          created_at: msg.created_at,
+        }));
+
+        setMessages(formattedMessages);
       } catch (err) {
-        console.error("Failed to fetch messages:", err);
+        console.error('Failed to fetch messages:', err);
         setMessages([]);
       } finally {
         setFetchingHistory(false);
       }
     };
+
     fetchMessages();
   }, [activeSession?.id]);
 
   const handleSend = async () => {
     if (!newMessage.trim()) return;
 
-    const userMsg = { role: "user", content: newMessage };
-    setNewMessage("");
+    const userMsg = {
+      role: 'user',
+      content: newMessage,
+      created_at: new Date().toISOString(),
+    };
+
+    setNewMessage('');
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
     let sessionId = activeSession?.id;
+
+    // Create new session if needed
     if (!sessionId) {
       try {
-        const res = await api.post("/api/sessions/", {});
+        const res = await api.post('/api/sessions/', {});
         const newSession = res.data;
         sessionId = newSession.id;
         setActiveSession(newSession);
-        setSessions((prev) => [newSession, ...prev]);
+        setSessions((prev) => [newSession, ...(Array.isArray(prev) ? prev : [])]);
       } catch (err) {
-        console.error("Failed to create session:", err);
+        console.error('Failed to create session:', err);
+        setMessages((prev) => prev.slice(0, -1));
         setLoading(false);
+        alert(STRINGS.ERRORS.SESSION_CREATE);
         return;
       }
     }
 
+    // Send message
     try {
       const res = await api.post(`/api/sessions/${sessionId}/chat/`, {
         message: userMsg.content,
       });
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: res.data.response,
-          news: res.data.news_items || [],
-        },
-      ]);
+      const assistantMsg = {
+        id: res.data.message_id || Date.now(),
+        role: 'assistant',
+        content: res.data.response,
+        news: res.data.news_items || res.data.sources || [],
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
 
       setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? { ...s, updated_at: new Date().toISOString() }
-            : s
+        (Array.isArray(prev) ? prev : []).map((s) =>
+          s.id === sessionId ? { ...s, updated_at: new Date().toISOString() } : s
         )
       );
     } catch (err) {
-      console.error("Failed to send message:", err);
+      console.error('Failed to send message:', err);
+      setMessages((prev) => prev.slice(0, -1));
+      alert(STRINGS.ERRORS.MESSAGE_SEND);
     } finally {
       setLoading(false);
     }
@@ -95,11 +129,14 @@ export default function ChatWindow({ activeSession, setActiveSession, sessions, 
   return (
     <Box
       sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: "#0b0c0f",
-        position: "relative",
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        background: `
+          radial-gradient(ellipse at 50% 0%, rgba(0, 212, 170, 0.03) 0%, transparent 50%),
+          #0a0b0e
+        `,
+        position: 'relative',
       }}
     >
       {/* Messages Container */}
@@ -107,31 +144,30 @@ export default function ChatWindow({ activeSession, setActiveSession, sessions, 
         ref={messagesContainerRef}
         sx={{
           flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
+          overflowY: 'auto',
+          overflowX: 'hidden',
           px: 3,
           py: 3,
-          display: "flex",
-          flexDirection: "column",
-          "&::-webkit-scrollbar": {
-            width: "8px",
+          display: 'flex',
+          flexDirection: 'column',
+          '&::-webkit-scrollbar': {
+            width: 6,
           },
-          "&::-webkit-scrollbar-track": {
-            background: "#1a1a1a",
-            borderRadius: "4px",
+          '&::-webkit-scrollbar-track': {
+            background: 'transparent',
           },
-          "&::-webkit-scrollbar-thumb": {
-            background: "#333",
-            borderRadius: "4px",
-            "&:hover": {
-              background: "#444",
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: 3,
+            '&:hover': {
+              background: 'rgba(255, 255, 255, 0.15)',
             },
           },
         }}
       >
         {fetchingHistory && (
-          <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
-            <CircularProgress color="inherit" size={24} />
+          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+            <SpinnerLoader size={28} color="#00d4aa" />
           </Box>
         )}
 
@@ -139,38 +175,66 @@ export default function ChatWindow({ activeSession, setActiveSession, sessions, 
         {!fetchingHistory && messages.length === 0 && (
           <Box
             sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               flex: 1,
-              color: "#666",
-              textAlign: "center",
+              textAlign: 'center',
+              px: 3,
             }}
           >
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Box
+              {/* Logo Animation */}
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Box
+                  sx={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(99, 102, 241, 0.1))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mx: 'auto',
+                    mb: 3,
+                    boxShadow: '0 0 60px rgba(0, 212, 170, 0.15)',
+                  }}
+                >
+                  <AutoAwesomeIcon sx={{ fontSize: 48, color: '#00d4aa' }} />
+                </Box>
+              </motion.div>
+
+              <Typography
+                variant="h4"
                 sx={{
-                  fontSize: "3rem",
+                  fontWeight: 800,
+                  background: 'linear-gradient(135deg, #00d4aa 0%, #00e5bf 50%, #6366f1 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
                   mb: 2,
-                  background: "linear-gradient(90deg, #10a37f, #1a7f64)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  fontWeight: 700,
                 }}
               >
-                NewsLens AI
-              </Box>
-              <Box sx={{ fontSize: "1.1rem", color: "#888", mb: 1 }}>
-                Start a conversation to get AI-powered news insights
-              </Box>
-              <Box sx={{ fontSize: "0.9rem", color: "#555" }}>
-                Ask me anything about current events, news, or topics you're interested in
-              </Box>
+                {STRINGS.CHAT.EMPTY_STATE_TITLE}
+              </Typography>
+
+              <Typography
+                variant="body1"
+                sx={{ color: 'text.secondary', maxWidth: 400, mb: 1 }}
+              >
+                {STRINGS.CHAT.EMPTY_STATE_DESC}
+              </Typography>
+
+              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                {STRINGS.CHAT.EMPTY_STATE_HINT}
+              </Typography>
             </motion.div>
           </Box>
         )}
@@ -179,165 +243,218 @@ export default function ChatWindow({ activeSession, setActiveSession, sessions, 
         <AnimatePresence>
           {messages.map((msg, idx) => (
             <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 15 }}
+              key={msg.id || idx}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3, delay: idx * 0.05 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
               <Box
                 sx={{
-                  display: "flex",
-                  justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-                  mb: 2.5,
-                  width: "100%",
+                  display: 'flex',
+                  justifyContent: msg.role === 'user' ? 'flex-start' : 'flex-end',
+                  mb: 3,
+                  gap: 1.5,
                 }}
               >
+                {/* Avatar for User */}
+                {msg.role === 'user' && (
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <PersonOutlineIcon sx={{ fontSize: 20, color: '#fff' }} />
+                  </Box>
+                )}
+
+                {/* Message Content */}
                 <Box
                   sx={{
-                    maxWidth: msg.role === "user" ? "70%" : "85%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: msg.role === "user" ? "flex-end" : "flex-start",
+                    maxWidth: msg.role === 'user' ? '70%' : '80%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: msg.role === 'user' ? 'flex-start' : 'flex-end',
                   }}
                 >
-                  {/* Message Bubble */}
                   <Box
                     sx={{
                       p: 2,
+                      px: 2.5,
                       borderRadius: 3,
-                      bgcolor: msg.role === "user" ? "#10a37f" : "#1c1d21",
-                      color: msg.role === "user" ? "#fff" : "#e5e5e5",
-                      wordBreak: "break-word",
-                      boxShadow:
-                        msg.role === "user"
-                          ? "0 2px 8px rgba(16, 163, 127, 0.3)"
-                          : "0 2px 8px rgba(0, 0, 0, 0.2)",
-                      border: msg.role === "user" ? "none" : "1px solid #2a2a2a",
-                      fontSize: "0.95rem",
-                      lineHeight: 1.6,
+                      background: msg.role === 'user'
+                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15))'
+                        : 'rgba(255, 255, 255, 0.04)',
+                      border: msg.role === 'user'
+                        ? '1px solid rgba(99, 102, 241, 0.3)'
+                        : '1px solid rgba(255, 255, 255, 0.06)',
+                      color: 'text.primary',
+                      lineHeight: 1.8,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
                     }}
                   >
                     {msg.content}
                   </Box>
 
-                  {/* News Items (Only for assistant messages) */}
-                  {msg.role === "assistant" && msg.news && msg.news.length > 0 && (
-                    <Box
+                  {/* Timestamp */}
+                  {msg.created_at && (
+                    <Typography
+                      variant="caption"
                       sx={{
-                        mt: 1.5,
-                        width: "100%",
-                        pl: 2,
-                        borderLeft: "3px solid #10a37f",
+                        mt: 0.5,
+                        px: 1,
+                        color: 'text.disabled',
+                        fontSize: '0.7rem',
                       }}
                     >
+                      {formatPersianTime(msg.created_at)}
+                    </Typography>
+                  )}
+
+                  {/* News Items */}
+                  {msg.role === 'assistant' && msg.news && msg.news.length > 0 && (
+                    <Box sx={{ mt: 2, width: '100%' }}>
                       {msg.news.map((n, i) => (
-                        <NewsItem key={i} news={n} />
+                        <NewsItem key={i} news={n} index={i} />
                       ))}
                     </Box>
                   )}
                 </Box>
+
+                {/* Avatar for Assistant */}
+                {msg.role === 'assistant' && (
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, #00d4aa, #00b894)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <SmartToyOutlinedIcon sx={{ fontSize: 20, color: '#fff' }} />
+                  </Box>
+                )}
               </Box>
             </motion.div>
           ))}
         </AnimatePresence>
 
-        {/* Loading Indicator */}
+        {/* Loading */}
         {loading && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
           >
             <Box
               sx={{
-                display: "flex",
-                justifyContent: "flex-start",
-                mb: 2,
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 1.5,
+                mb: 3,
               }}
             >
               <Box
                 sx={{
-                  maxWidth: "70%",
                   p: 2,
+                  px: 3,
                   borderRadius: 3,
-                  bgcolor: "#1c1d21",
-                  color: "#888",
-                  fontStyle: "italic",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  border: "1px solid #2a2a2a",
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
                 }}
               >
-                <CircularProgress size={16} sx={{ color: "#10a37f" }} />
-                <span>Thinking...</span>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {STRINGS.CHAT.THINKING}
+                </Typography>
+                <DotsLoader size={6} />
+              </Box>
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #00d4aa, #00b894)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SmartToyOutlinedIcon sx={{ fontSize: 20, color: '#fff' }} />
               </Box>
             </Box>
           </motion.div>
         )}
-
-        <div ref={messagesEndRef} />
       </Box>
 
-      {/* Input Box - Fixed at Bottom */}
+      {/* Input Area */}
       <Box
         sx={{
-          borderTop: "1px solid #2a2a2a",
-          backgroundColor: "#111",
+          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'rgba(10, 11, 14, 0.9)',
+          backdropFilter: 'blur(10px)',
           p: 2.5,
-          display: "flex",
-          justifyContent: "center",
         }}
       >
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
-            width: "100%",
             maxWidth: 900,
+            mx: 'auto',
+            display: 'flex',
             gap: 1.5,
+            alignItems: 'flex-end',
           }}
         >
           <TextField
             fullWidth
             multiline
             maxRows={4}
-            variant="outlined"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
-            placeholder="Type your message... (Shift+Enter for new line)"
+            placeholder={STRINGS.CHAT.TYPE_MESSAGE}
             disabled={loading}
             sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "16px",
-                bgcolor: "#1c1d21",
-                color: "#fff",
-                border: "1px solid #2a2a2a",
-                transition: "all 0.2s",
-                "&:hover": {
-                  borderColor: "#10a37f",
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 3,
+                backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                transition: 'all 250ms ease',
+                '&:hover': {
+                  borderColor: 'rgba(0, 212, 170, 0.3)',
                 },
-                "&.Mui-focused": {
-                  borderColor: "#10a37f",
-                  boxShadow: "0 0 0 2px rgba(16, 163, 127, 0.1)",
+                '&.Mui-focused': {
+                  borderColor: '#00d4aa',
+                  backgroundColor: 'rgba(0, 212, 170, 0.03)',
+                  boxShadow: '0 0 0 3px rgba(0, 212, 170, 0.1)',
                 },
-                "& fieldset": {
-                  border: "none",
+                '& fieldset': {
+                  border: 'none',
                 },
               },
-              "& .MuiInputBase-input": {
-                color: "#fff",
-                fontSize: "0.95rem",
+              '& .MuiInputBase-input': {
                 py: 1.5,
-                "&::placeholder": {
-                  color: "#666",
+                color: 'text.primary',
+                '&::placeholder': {
+                  color: 'text.disabled',
                   opacity: 1,
                 },
               },
@@ -347,25 +464,39 @@ export default function ChatWindow({ activeSession, setActiveSession, sessions, 
             onClick={handleSend}
             disabled={loading || !newMessage.trim()}
             sx={{
-              bgcolor: "#10a37f",
-              color: "#fff",
-              width: 48,
-              height: 48,
-              transition: "all 0.2s",
-              "&:hover": {
-                bgcolor: "#0d8a6a",
-                transform: "translateY(-2px)",
-                boxShadow: "0 4px 12px rgba(16, 163, 127, 0.4)",
+              width: 52,
+              height: 52,
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #00d4aa 0%, #00b894 100%)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0, 212, 170, 0.3)',
+              transition: 'all 250ms ease',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #00e5bf 0%, #00d4aa 100%)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 20px rgba(0, 212, 170, 0.4)',
               },
-              "&:disabled": {
-                bgcolor: "#2a2a2a",
-                color: "#666",
+              '&:disabled': {
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: 'text.disabled',
+                boxShadow: 'none',
               },
             }}
           >
-            <SendIcon />
+            <SendIcon sx={{ transform: 'rotate(180deg)' }} />
           </IconButton>
         </Box>
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'block',
+            textAlign: 'center',
+            mt: 1.5,
+            color: 'text.disabled',
+          }}
+        >
+          {STRINGS.CHAT.SHIFT_ENTER_HINT}
+        </Typography>
       </Box>
     </Box>
   );

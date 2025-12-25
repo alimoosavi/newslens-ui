@@ -12,8 +12,9 @@ export const API_ENDPOINTS = {
     SEARCH_CLICK: '/api/search/click/',
 
     // Auth
-    AUTH_TOKEN: '/api/auth/token/',
-    AUTH_REFRESH: '/api/auth/token/refresh/',
+    AUTH_REGISTER: '/auth/register/',     // ← NEW ENDPOINT
+    AUTH_TOKEN: '/auth/token/',
+    AUTH_REFRESH: '/auth/token/refresh/',
 };
 
 export default API_ENDPOINTS;

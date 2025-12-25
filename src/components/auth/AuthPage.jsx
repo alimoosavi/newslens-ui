@@ -9,7 +9,7 @@ import {
   Alert,
   Collapse,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../../api";
 import { API_ENDPOINTS } from "../../constants/endpoints";
 
@@ -164,7 +164,23 @@ export default function AuthPage() {
           )}
         </Button>
 
-        <Typography variant="caption" align="center" sx={{ mt: 2, color: "#666" }}>
+        {/* ↓ NEW: Sign Up Link */}
+        <Typography variant="body2" align="center" sx={{ mt: 2, color: "#888" }}>
+          Don't have an account?{" "}
+          <Link
+            to="/signup"
+            style={{
+              color: "#10a37f",
+              textDecoration: "none",
+              fontWeight: "bold",
+            }}
+          >
+            Sign Up
+          </Link>
+        </Typography>
+        {/* ↑ NEW: Sign Up Link */}
+
+        <Typography variant="caption" align="center" sx={{ mt: 1, color: "#666" }}>
           NewsLens AI-Powered News Assistant
         </Typography>
       </Paper>
